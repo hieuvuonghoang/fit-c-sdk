@@ -67,7 +67,7 @@ void WriteData(const void *data, FIT_UINT16 data_size, FILE *fp);
 // Private Variables
 ///////////////////////////////////////////////////////////////////////
 
-FIT_BOOL GetStartTime(char *pathFile, FIT_DATE_TIME *start_time, FIT_UINT32 *time_offset);
+FIT_BOOL GetStartTimeOrWriteFitFile(char *pathFile, FIT_DATE_TIME *start_time, FIT_UINT32 *time_offset, const FIT_DATE_TIME *offset, const FIT_BOOL *isWrite);
 
 static FIT_UINT16 data_crc;
 
@@ -79,46 +79,59 @@ int main(int argc, char *argv[])
       return FIT_FALSE;
    }
    printf("Using %s file...\n", argv[1]);
+
    FIT_DATE_TIME start_time = 0;
    FIT_UINT32 time_offset = 0;
-   FIT_BOOL result = GetStartTime(argv[1], &start_time, &time_offset);
-   if (!result)
-   {
-      return FIT_FALSE;
-   }
+   FIT_DATE_TIME offset = 0;
+   FIT_BOOL isWrite = FIT_FALSE;
+   FIT_BOOL result = FIT_FALSE;
    FIT_DATE_TIME new_start_time = 0;
+
    result = GetEpochForFitByArgs(&argv[2], &new_start_time);
    if (!result)
    {
       return FIT_FALSE;
    }
-   FIT_DATE_TIME offset = new_start_time - start_time - time_offset;
+   result = GetStartTimeOrWriteFitFile(argv[1], &start_time, &time_offset, &offset, &isWrite);
+   if (!result)
+   {
+      return FIT_FALSE;
+   }
+   
+   offset = new_start_time - start_time - time_offset;
    printf("Start time: ");
    PrintEpochTimeFit(&start_time, &time_offset);
    printf("New start time: ");
    PrintEpochTimeFit(&new_start_time, &(FIT_UINT32){0});
    printf("Offset: %u seconds\n", offset);
+   isWrite = FIT_TRUE;
+   result = GetStartTimeOrWriteFitFile(argv[1], NULL, NULL, &offset, &isWrite);
 
+   return 0;
+}
+
+FIT_BOOL GetStartTimeOrWriteFitFile(char *pathFile, FIT_DATE_TIME *start_time, FIT_UINT32 *time_offset, const FIT_DATE_TIME *offset, const FIT_BOOL *isWrite)
+{
    FILE *file;
+   FILE *fp;
    FIT_UINT8 buf[8];
    FIT_CONVERT_RETURN convert_return = FIT_CONVERT_CONTINUE;
    FIT_UINT32 buf_size;
-   FIT_UINT32 mesg_index = 0;
-
+   FIT_BOOL flags[2] = {FIT_FALSE, FIT_FALSE};
    FitConvert_Init(FIT_TRUE);
 
-   if ((file = fopen(argv[1], "rb")) == NULL)
+   if ((file = fopen(pathFile, "rb")) == NULL)
    {
-      printf("Error opening file %s.\n", argv[1]);
+      printf("Error opening file %s.\n", pathFile);
       return FIT_FALSE;
    }
 
-   FILE *fp;
-
-   data_crc = 0;
-   fp = fopen("test.fit", "w+b");
-
-   WriteFileHeader(fp);
+   if (*isWrite)
+   {
+      data_crc = 0;
+      fp = fopen("test.fit", "w+b");
+      WriteFileHeader(fp);
+   }
 
    while (!feof(file) && (convert_return == FIT_CONVERT_CONTINUE))
    {
@@ -140,15 +153,17 @@ int main(int argc, char *argv[])
 
             switch (mesg_num)
             {
+
             case FIT_MESG_NUM_FILE_ID:
             {
                FIT_FILE_ID_MESG *id = (FIT_FILE_ID_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_FILE_ID_MESG file_id_mesg;
                   Fit_InitMesg(fit_mesg_defs[FIT_MESG_FILE_ID], &file_id_mesg);
                   WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_FILE_ID], FIT_FILE_ID_MESG_DEF_SIZE, fp);
-                  id->time_created += offset;
+                  id->time_created += *offset;
                   WriteMessage(local_mesg_number, id, FIT_FILE_ID_MESG_SIZE, fp);
                }
                break;
@@ -157,6 +172,7 @@ int main(int argc, char *argv[])
             case FIT_MESG_NUM_USER_PROFILE:
             {
                FIT_USER_PROFILE_MESG *user_profile = (FIT_USER_PROFILE_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_USER_PROFILE_MESG user_profile_mesg;
@@ -170,13 +186,14 @@ int main(int argc, char *argv[])
             case FIT_MESG_NUM_ACTIVITY:
             {
                FIT_ACTIVITY_MESG *activity = (FIT_ACTIVITY_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_ACTIVITY_MESG activity_mesg;
                   Fit_InitMesg(fit_mesg_defs[FIT_MESG_ACTIVITY], &activity_mesg);
                   WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_ACTIVITY], FIT_ACTIVITY_MESG_DEF_SIZE, fp);
-                  activity->timestamp += offset;
-                  activity->local_timestamp += offset;
+                  activity->timestamp += *offset;
+                  activity->local_timestamp += *offset;
                   WriteMessage(local_mesg_number, activity, FIT_ACTIVITY_MESG_SIZE, fp);
                }
                break;
@@ -185,12 +202,14 @@ int main(int argc, char *argv[])
             case FIT_MESG_NUM_SESSION:
             {
                FIT_SESSION_MESG *session = (FIT_SESSION_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_SESSION_MESG session_mesg;
                   Fit_InitMesg(fit_mesg_defs[FIT_MESG_SESSION], &session_mesg);
                   WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_SESSION], FIT_SESSION_MESG_DEF_SIZE, fp);
-                  session->timestamp += offset;
+                  session->timestamp += *offset;
+                  session->start_time += *offset;
                   WriteMessage(local_mesg_number, session, FIT_SESSION_MESG_SIZE, fp);
                }
                break;
@@ -199,12 +218,14 @@ int main(int argc, char *argv[])
             case FIT_MESG_NUM_LAP:
             {
                FIT_LAP_MESG *lap = (FIT_LAP_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_LAP_MESG lap_mesg;
                   Fit_InitMesg(fit_mesg_defs[FIT_MESG_LAP], &lap_mesg);
                   WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_LAP], FIT_LAP_MESG_DEF_SIZE, fp);
-                  lap->timestamp += offset;
+                  lap->timestamp += *offset;
+                  lap->start_time += *offset;
                   WriteMessage(local_mesg_number, lap, FIT_LAP_MESG_SIZE, fp);
                }
                break;
@@ -213,12 +234,13 @@ int main(int argc, char *argv[])
             case FIT_MESG_NUM_RECORD:
             {
                FIT_RECORD_MESG *record = (FIT_RECORD_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_RECORD_MESG record_mesg;
                   Fit_InitMesg(fit_mesg_defs[FIT_MESG_RECORD], &record_mesg);
                   WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_RECORD], FIT_RECORD_MESG_DEF_SIZE, fp);
-                  record->timestamp += offset;
+                  record->timestamp += *offset;
                   WriteMessage(local_mesg_number, record, FIT_RECORD_MESG_SIZE, fp);
                }
                break;
@@ -227,13 +249,22 @@ int main(int argc, char *argv[])
             case FIT_MESG_NUM_EVENT:
             {
                FIT_EVENT_MESG *event = (FIT_EVENT_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_EVENT_MESG event_mesg;
                   Fit_InitMesg(fit_mesg_defs[FIT_MESG_EVENT], &event_mesg);
                   WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_EVENT], FIT_EVENT_MESG_DEF_SIZE, fp);
-                  event->timestamp += offset;
+                  event->timestamp += *offset;
                   WriteMessage(local_mesg_number, event, FIT_EVENT_MESG_SIZE, fp);
+               }
+               else
+               {
+                  if (event->event == FIT_EVENT_TYPE_START)
+                  {
+                     *start_time = event->timestamp;
+                     flags[0] = FIT_TRUE;
+                  }
                }
                break;
             }
@@ -241,108 +272,14 @@ int main(int argc, char *argv[])
             case FIT_MESG_NUM_DEVICE_INFO:
             {
                FIT_DEVICE_INFO_MESG *device_info = (FIT_DEVICE_INFO_MESG *)mesg;
+               if (*isWrite)
                {
                   FIT_UINT8 local_mesg_number = 0;
                   FIT_DEVICE_INFO_MESG device_info_mesg;
                   Fit_InitMesg(fit_mesg_defs[FIT_MESG_DEVICE_INFO], &device_info_mesg);
                   WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_DEVICE_INFO], FIT_DEVICE_INFO_MESG_DEF_SIZE, fp);
-
-                  device_info->timestamp += offset;
-
+                  device_info->timestamp += *offset;
                   WriteMessage(local_mesg_number, device_info, FIT_DEVICE_INFO_MESG_SIZE, fp);
-               }
-               break;
-            }
-
-            default:
-               break;
-            }
-            break;
-         }
-
-         default:
-            break;
-         }
-      } while (convert_return == FIT_CONVERT_MESSAGE_AVAILABLE);
-   }
-
-   if (convert_return == FIT_CONVERT_ERROR)
-   {
-      printf("Error decoding file.\n");
-      fclose(file);
-      return 1;
-   }
-
-   if (convert_return == FIT_CONVERT_CONTINUE)
-   {
-      printf("Unexpected end of file.\n");
-      fclose(file);
-      return 1;
-   }
-
-   if (convert_return == FIT_CONVERT_DATA_TYPE_NOT_SUPPORTED)
-   {
-      printf("File is not FIT.\n");
-      fclose(file);
-      return 1;
-   }
-
-   if (convert_return == FIT_CONVERT_PROTOCOL_VERSION_NOT_SUPPORTED)
-   {
-      printf("Protocol version not supported.\n");
-      fclose(file);
-      return 1;
-   }
-
-   if (convert_return == FIT_CONVERT_END_OF_FILE)
-      printf("File converted successfully.\n");
-
-   fclose(file);
-
-   return 0;
-}
-
-FIT_BOOL GetStartTime(char *pathFile, FIT_DATE_TIME *start_time, FIT_UINT32 *time_offset)
-{
-   FILE *file;
-   FIT_UINT8 buf[8];
-   FIT_CONVERT_RETURN convert_return = FIT_CONVERT_CONTINUE;
-   FIT_UINT32 buf_size;
-   FIT_BOOL flags[2] = {FIT_FALSE, FIT_FALSE};
-   FitConvert_Init(FIT_TRUE);
-   if ((file = fopen(pathFile, "rb")) == NULL)
-   {
-      printf("Error opening file %s.\n", pathFile);
-      return FIT_FALSE;
-   }
-   while (!feof(file) && (convert_return == FIT_CONVERT_CONTINUE))
-   {
-      for (buf_size = 0; (buf_size < sizeof(buf)) && !feof(file); buf_size++)
-      {
-         buf[buf_size] = (FIT_UINT8)getc(file);
-      }
-
-      do
-      {
-         convert_return = FitConvert_Read(buf, buf_size);
-
-         switch (convert_return)
-         {
-         case FIT_CONVERT_MESSAGE_AVAILABLE:
-         {
-            const FIT_UINT8 *mesg = FitConvert_GetMessageData();
-            FIT_UINT16 mesg_num = FitConvert_GetMessageNumber();
-
-            switch (mesg_num)
-            {
-
-            case FIT_MESG_NUM_EVENT:
-            {
-               const FIT_EVENT_MESG *event = (FIT_EVENT_MESG *)mesg;
-               if (event->event == FIT_EVENT_TYPE_START)
-               {
-                  *start_time = event->timestamp;
-                  flags[0] = FIT_TRUE;
                }
                break;
             }
@@ -350,8 +287,11 @@ FIT_BOOL GetStartTime(char *pathFile, FIT_DATE_TIME *start_time, FIT_UINT32 *tim
             case FIT_MESG_NUM_DEVICE_SETTINGS:
             {
                const FIT_DEVICE_SETTINGS_MESG *device_settings = (FIT_DEVICE_SETTINGS_MESG *)mesg;
-               *time_offset = device_settings->time_offset[0];
-               flags[1] = FIT_TRUE;
+               if (!*isWrite)
+               {
+                  *time_offset = device_settings->time_offset[0];
+                  flags[1] = FIT_TRUE;
+               }
                break;
             }
 
@@ -368,7 +308,7 @@ FIT_BOOL GetStartTime(char *pathFile, FIT_DATE_TIME *start_time, FIT_UINT32 *tim
 
       } while (convert_return == FIT_CONVERT_MESSAGE_AVAILABLE);
 
-      if (flags[0] && flags[1])
+      if (!*isWrite && flags[0] && flags[1])
       {
          convert_return = FIT_CONVERT_MESSAGE_AVAILABLE;
          break;
