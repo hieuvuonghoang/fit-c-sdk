@@ -6,8 +6,8 @@ ifneq ($(OS),Windows_NT)
 	CFLAGS+=-DFIT_USE_STDINT_H
 endif
 
-decode: decode.o fit.o fit_convert.o fit_crc.o fit_product.o
-	$(CC) $(CFLAGS) decode.o fit.o fit_convert.o fit_crc.o fit_product.o -o decode -lm
+decode: decode.o fit.o fit_convert.o fit_crc.o fit_product.o fit_time.o
+	$(CC) $(CFLAGS) decode.o fit.o fit_convert.o fit_crc.o fit_product.o fit_time.o -o decode -lm
 
 decode.o: decode.c
 	$(CC) $(CFLAGS) -c decode.c -o decode.o
@@ -23,6 +23,9 @@ fit_crc.o: ../../fit_crc.c ../../fit_config.h ../../fit_include.h
 
 fit_product.o: ../../fit_product.c ../../fit_config.h ../../fit_include.h
 	$(CC) $(CFLAGS) -c ../../fit_product.c -o fit_product.o
+
+fit_time.o: ../../fit_time.c ../../fit_time.h ../../fit_include.h
+	$(CC) $(CFLAGS) -c ../../fit_time.c -o fit_time.o
 
 clean:
 	rm -f decode *.o
