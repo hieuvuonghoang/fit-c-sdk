@@ -84,7 +84,7 @@ int main(void)
 	fp = fopen("test.fit", "w+b");
 
 	WriteFileHeader(fp);
-
+	
 	FIT_DATE_TIME timestamp = 1000000000; // 2021-09-08T01:46:40-0600Z in seconds since the FIT Epoch of 1989-12-31T:00:00:00Z
 	FIT_DATE_TIME start_time = timestamp;
 
