@@ -69,24 +69,23 @@ void WriteData(const void *data, FIT_UINT16 data_size, FILE *fp);
 // Private Variables
 ///////////////////////////////////////////////////////////////////////
 
-FIT_BOOL GetStartTimeOrWriteFitFile(char *pathFile, time_t *start_time, const time_t *offset, const FIT_BOOL *isWrite);
+FIT_BOOL GetStartTimeOrWriteFitFile(char *src_path_file, char *dest_path_file, time_t *start_time, const time_t *offset, const FIT_BOOL *isWrite);
 
 FIT_BOOL GetDateTime(char *argv[], time_t *t_of_day);
 
-void PrintDateTime(const time_t *date_time);
+char* GetDateTimeStr(const time_t *t_of_day);
 
 static FIT_UINT16 data_crc;
-static FIT_UINT32 tz_local;
+static char buf[80];
 
 int main(int argc, char *argv[])
 {
    if (argc < 8)
    {
-      printf("usage: decode.exe <fit file> <year> <month> <day> <hour> <minute> <second>");
-      return FIT_FALSE;
+      printf("usage: change_time.exe <fit file> <year> <month> <day> <hour> <minute> <second>");
+      return 1;
    }
    tzset();
-   tz_local = _timezone;
 
    FIT_BOOL result = FIT_FALSE;
 
@@ -97,47 +96,51 @@ int main(int argc, char *argv[])
       return 1;
    }
 
+   struct tm ts;
+   ts = *localtime(&t_of_day_new);
+   // ACTIVITY_20260604_190003.fit
+   char buf_file_name[32];
+   strftime(buf_file_name, sizeof(buf_file_name), "ACTIVITY_%Y%m%d_%H%M%S.fit", &ts);
+
    putenv("TZ=UTC");
    tzset();
 
    t_of_day_new += _timezone;
-   struct tm t = *localtime(&t_of_day_new);
-   t_of_day_new = mktime(&t);
-   printf("New start time: ");
-   PrintDateTime(&t_of_day_new);
+   ts = *localtime(&t_of_day_new);
+   t_of_day_new = mktime(&ts);
+   printf("New start time: %s\n", GetDateTimeStr(&t_of_day_new));
 
    time_t t_of_day_current = 0;
    FIT_BOOL isWrite = FIT_FALSE;
 
-   result = GetStartTimeOrWriteFitFile(argv[1], &t_of_day_current, NULL, &isWrite);
+   result = GetStartTimeOrWriteFitFile(argv[1], NULL, &t_of_day_current, NULL, &isWrite);
    if (!result)
    {
       return 1;
    }
    t_of_day_current += EPOCH_GARMIN_OFFSET;
-   printf("Current start time: ");
-   PrintDateTime(&t_of_day_current);
+   printf("Current start time: %s\n", GetDateTimeStr(&t_of_day_current));
 
    time_t t_of_day_offset = t_of_day_new - t_of_day_current;
    isWrite = FIT_TRUE;
-   result = GetStartTimeOrWriteFitFile(argv[1], NULL, &t_of_day_offset, &isWrite);
+   result = GetStartTimeOrWriteFitFile(argv[1], buf_file_name, NULL, &t_of_day_offset, &isWrite);
    if (!result)
    {
       return 1;
    }
 
-   printf("Done!");
+   printf("Output: %s\n", buf_file_name);
+   printf("Success!");
 
    return 0;
 }
 
-void PrintDateTime(const time_t *date_time)
+char* GetDateTimeStr(const time_t *t_of_day)
 {
    struct tm ts;
-   char buf[80];
-   ts = *localtime(date_time);
+   ts = *localtime(t_of_day);
    strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
-   printf("%s\n", buf);
+   return buf;
 }
 
 FIT_BOOL GetDateTime(char *argv[], time_t *t_of_day)
@@ -189,7 +192,7 @@ FIT_BOOL GetDateTime(char *argv[], time_t *t_of_day)
    return FIT_TRUE;
 }
 
-FIT_BOOL GetStartTimeOrWriteFitFile(char *pathFile, time_t *start_time, const time_t *offset, const FIT_BOOL *isWrite)
+FIT_BOOL GetStartTimeOrWriteFitFile(char *src_path_file, char *dest_path_file, time_t *start_time, const time_t *offset, const FIT_BOOL *isWrite)
 {
    FILE *file;
    FILE *fp;
@@ -199,16 +202,16 @@ FIT_BOOL GetStartTimeOrWriteFitFile(char *pathFile, time_t *start_time, const ti
    FIT_BOOL flag = FIT_FALSE;
    FitConvert_Init(FIT_TRUE);
 
-   if ((file = fopen(pathFile, "rb")) == NULL)
+   if ((file = fopen(src_path_file, "rb")) == NULL)
    {
-      printf("Error opening file %s.\n", pathFile);
+      printf("Error opening file %s.\n", src_path_file);
       return FIT_FALSE;
    }
 
    if (*isWrite)
    {
       data_crc = 0;
-      fp = fopen("test.fit", "w+b");
+      fp = fopen(dest_path_file, "w+b");
       WriteFileHeader(fp);
    }
 
