@@ -417,6 +417,17 @@ FIT_BOOL GetStartTimeOrWriteFitFile(char *src_path_file, char *dest_path_file, t
    // if (convert_return == FIT_CONVERT_END_OF_FILE)
    //    printf("File converted successfully.\n");
 
+   if(*isWrite)
+   {
+      // Write CRC.
+      fwrite(&data_crc, 1, sizeof(FIT_UINT16), fp);
+
+      // Update file header with data size.
+      WriteFileHeader(fp);
+
+      fclose(fp);
+   }
+
    fclose(file);
 
    return FIT_TRUE;
