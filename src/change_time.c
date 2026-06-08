@@ -73,7 +73,7 @@ FIT_BOOL GetStartTimeOrWriteFitFile(char *src_path_file, char *dest_path_file, t
 
 FIT_BOOL GetDateTime(char *argv[], time_t *t_of_day);
 
-char* GetDateTimeStr(const time_t *t_of_day);
+char *GetDateTimeStr(const time_t *t_of_day);
 
 static FIT_UINT16 data_crc;
 static char buf[80];
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 
    putenv("TZ=UTC");
    tzset();
-   
+
    ts = *localtime(&t_of_day_new);
    t_of_day_new = mktime(&ts);
 
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
       return 1;
    }
    t_of_day_in_activity += EPOCH_GARMIN_OFFSET;
-   
+
    time_t t_of_day_offset = t_of_day_new - t_of_day_in_activity;
    isWrite = FIT_TRUE;
    result = GetStartTimeOrWriteFitFile(argv[1], buf_file_name, NULL, &t_of_day_offset, &isWrite);
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-char* GetDateTimeStr(const time_t *t_of_day)
+char *GetDateTimeStr(const time_t *t_of_day)
 {
    struct tm ts;
    ts = *localtime(t_of_day);
@@ -233,6 +233,121 @@ FIT_BOOL GetStartTimeOrWriteFitFile(char *src_path_file, char *dest_path_file, t
 
             switch (mesg_num)
             {
+
+            case FIT_MESG_NUM_DEVICE_SETTINGS:
+            {
+               FIT_DEVICE_INFO_MESG *file_device  = (FIT_DEVICE_INFO_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_DEVICE_INFO_MESG file_device_mesg;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_DEVICE_INFO], &file_device_mesg);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_DEVICE_INFO], FIT_DEVICE_INFO_MESG_DEF_SIZE, fp);
+                  file_device->timestamp += *offset;
+                  WriteMessage(local_mesg_number, file_device, FIT_DEVICE_INFO_MESG_SIZE, fp);
+               }
+               break;
+            }
+
+            case FIT_MESG_NUM_SPORT:
+            {
+               FIT_SPORT_MESG *file_sport = (FIT_SPORT_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_SPORT_MESG file_sport_mesg;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_SPORT], &file_sport_mesg);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_SPORT], FIT_SPORT_MESG_DEF_SIZE, fp);
+                  WriteMessage(local_mesg_number, file_sport, FIT_SPORT_MESG_SIZE, fp);
+               }
+               break;
+            }
+
+            case FIT_MESG_NUM_TRAINING_SETTINGS:
+            {
+               FIT_TRAINING_SETTINGS_MESG *file_training_setting = (FIT_TRAINING_SETTINGS_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_TRAINING_SETTINGS_MESG file_training_setting_mesg;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_TRAINING_SETTINGS], &file_training_setting_mesg);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_TRAINING_SETTINGS], FIT_TRAINING_SETTINGS_MESG_DEF_SIZE, fp);
+                  WriteMessage(local_mesg_number, file_training_setting, FIT_TRAINING_SETTINGS_MESG_SIZE, fp);
+               }
+               break;
+            }
+
+            case FIT_MESG_NUM_ZONES_TARGET:
+            {
+               FIT_ZONES_TARGET_MESG *file_zone = (FIT_ZONES_TARGET_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_ZONES_TARGET_MESG file_zone_mesg;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_ZONES_TARGET], &file_zone_mesg);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_ZONES_TARGET], FIT_ZONES_TARGET_MESG_DEF_SIZE, fp);
+                  WriteMessage(local_mesg_number, file_zone, FIT_ZONES_TARGET_MESG_SIZE, fp);
+               }
+               break;
+            }
+
+            case FIT_MESG_NUM_TRAINING_FILE:
+            {
+               FIT_TRAINING_FILE_MESG *file_training = (FIT_TRAINING_FILE_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_TRAINING_FILE_MESG file_training_mesg;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_TRAINING_FILE], &file_training_mesg);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_TRAINING_FILE], FIT_TRAINING_FILE_MESG_DEF_SIZE, fp);
+                  file_training->timestamp += *offset;
+                  file_training->time_created += *offset;
+                  WriteMessage(local_mesg_number, file_training, FIT_TRAINING_FILE_MESG_SIZE, fp);
+               }
+               break;
+            }
+
+            case FIT_MESG_NUM_WORKOUT:
+            {
+               FIT_WORKOUT_MESG *workout_mesg = (FIT_WORKOUT_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_WORKOUT_MESG workout_mesg_tmp;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_WORKOUT], &workout_mesg_tmp);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_WORKOUT], FIT_WORKOUT_MESG_DEF_SIZE, fp);
+                  WriteMessage(local_mesg_number, workout_mesg, FIT_WORKOUT_MESG_SIZE, fp);
+               }
+               break;
+            }
+
+            case FIT_MESG_NUM_WORKOUT_STEP:
+            {
+               FIT_WORKOUT_STEP_MESG *workout_step_mesg = (FIT_WORKOUT_STEP_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_WORKOUT_STEP_MESG workout_step_mesg_tmp;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_WORKOUT_STEP], &workout_step_mesg_tmp);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_WORKOUT_STEP], FIT_WORKOUT_STEP_MESG_DEF_SIZE, fp);
+                  WriteMessage(local_mesg_number, workout_step_mesg, FIT_WORKOUT_STEP_MESG_SIZE, fp);
+               }
+               break;
+            }
+
+            case FIT_MESG_NUM_FILE_CREATOR:
+            {
+               FIT_FILE_CREATOR_MESG *file_creator = (FIT_FILE_CREATOR_MESG *)mesg;
+               if (*isWrite)
+               {
+                  FIT_UINT8 local_mesg_number = 0;
+                  FIT_FILE_CREATOR_MESG file_creator_mesg;
+                  Fit_InitMesg(fit_mesg_defs[FIT_MESG_FILE_CREATOR], &file_creator_mesg);
+                  WriteMessageDefinition(local_mesg_number, fit_mesg_defs[FIT_MESG_FILE_CREATOR], FIT_FILE_CREATOR_MESG_DEF_SIZE, fp);
+                  WriteMessage(local_mesg_number, file_creator, FIT_FILE_CREATOR_MESG_SIZE, fp);
+               }
+               break;
+            }
 
             case FIT_MESG_NUM_FILE_ID:
             {
@@ -365,6 +480,7 @@ FIT_BOOL GetStartTimeOrWriteFitFile(char *src_path_file, char *dest_path_file, t
             }
 
             default:
+               printf("War: %u Unknow.\n", mesg_num);
                break;
             }
 
@@ -415,7 +531,7 @@ FIT_BOOL GetStartTimeOrWriteFitFile(char *src_path_file, char *dest_path_file, t
    // if (convert_return == FIT_CONVERT_END_OF_FILE)
    //    printf("File converted successfully.\n");
 
-   if(*isWrite)
+   if (*isWrite)
    {
       // Write CRC.
       fwrite(&data_crc, 1, sizeof(FIT_UINT16), fp);
