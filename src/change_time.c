@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
       printf("usage: change_time.exe <fit file> <year> <month> <day> <hour> <minute> <second>");
       return 1;
    }
+
    tzset();
 
    FIT_BOOL result = FIT_FALSE;
@@ -98,30 +99,26 @@ int main(int argc, char *argv[])
 
    struct tm ts;
    ts = *localtime(&t_of_day_new);
-   // ACTIVITY_20260604_190003.fit
    char buf_file_name[32];
    strftime(buf_file_name, sizeof(buf_file_name), "ACTIVITY_%Y%m%d_%H%M%S.fit", &ts);
 
    putenv("TZ=UTC");
    tzset();
-
-   t_of_day_new += _timezone;
+   
    ts = *localtime(&t_of_day_new);
    t_of_day_new = mktime(&ts);
-   printf("New start time: %s\n", GetDateTimeStr(&t_of_day_new));
 
-   time_t t_of_day_current = 0;
+   time_t t_of_day_in_activity = 0;
    FIT_BOOL isWrite = FIT_FALSE;
 
-   result = GetStartTimeOrWriteFitFile(argv[1], NULL, &t_of_day_current, NULL, &isWrite);
+   result = GetStartTimeOrWriteFitFile(argv[1], NULL, &t_of_day_in_activity, NULL, &isWrite);
    if (!result)
    {
       return 1;
    }
-   t_of_day_current += EPOCH_GARMIN_OFFSET;
-   printf("Current start time: %s\n", GetDateTimeStr(&t_of_day_current));
-
-   time_t t_of_day_offset = t_of_day_new - t_of_day_current;
+   t_of_day_in_activity += EPOCH_GARMIN_OFFSET;
+   
+   time_t t_of_day_offset = t_of_day_new - t_of_day_in_activity;
    isWrite = FIT_TRUE;
    result = GetStartTimeOrWriteFitFile(argv[1], buf_file_name, NULL, &t_of_day_offset, &isWrite);
    if (!result)
@@ -129,8 +126,9 @@ int main(int argc, char *argv[])
       return 1;
    }
 
-   printf("Output: %s\n", buf_file_name);
-   printf("Success!");
+   printf("|%-10s|%-50s|%-30s|\n", "Type", "File Name", "Date Time (UTC)");
+   printf("|%-10s|%-50s|%-30s|\n", "Input", argv[1], GetDateTimeStr(&t_of_day_in_activity));
+   printf("|%-10s|%-50s|%-30s|\n", "Output", buf_file_name, GetDateTimeStr(&t_of_day_new));
 
    return 0;
 }
